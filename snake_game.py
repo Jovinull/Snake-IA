@@ -172,19 +172,36 @@ class SnakeGameAI:
 
         Args:
             action (list): Lista que representa a ação a ser tomada pela IA.
-                           [straight, right, left]
+                        [straight, right, left]
+
+        Detalhes:
+            A ordem das direções é definida em sentido horário: [direita, baixo, esquerda, cima].
+
+            O módulo 4 é utilizado para garantir que o índice da nova direção da cobra 
+            permaneça dentro do intervalo válido (0 a 3). Como há apenas 4 direções possíveis, 
+            o módulo 4 evita que o índice ultrapasse esses limites, permitindo que a direção 
+            circule corretamente entre as opções.
         """
+        # Define a ordem das direções em sentido horário (direita, baixo, esquerda, cima)
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
+
+        # Encontra o índice da direção atual da cobra na lista `clock_wise`
         idx = clock_wise.index(self.direction)
 
+        # Verifica qual ação a IA escolheu e ajusta a direção da cobra com base nisso
         if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx]  # Sem mudança
+            # Se a ação for [1, 0, 0], a cobra continua na mesma direção (nenhuma mudança)
+            new_dir = clock_wise[idx]
         elif np.array_equal(action, [0, 1, 0]):
+            # Se a ação for [0, 1, 0], a cobra deve virar à direita
+            # Calcula o próximo índice em sentido horário (somando 1 e usando módulo 4 para manter dentro dos limites)
             next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx]  # Virar à direita
+            new_dir = clock_wise[next_idx]
         else:  # [0, 0, 1]
+            # Se a ação for [0, 0, 1], a cobra deve virar à esquerda
+            # Calcula o índice anterior em sentido horário (subtraindo 1 e usando módulo 4 para manter dentro dos limites)
             next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx]  # Virar à esquerda
+            new_dir = clock_wise[next_idx]
 
         self.direction = new_dir
 
