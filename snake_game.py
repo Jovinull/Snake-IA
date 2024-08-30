@@ -4,84 +4,116 @@ from enum import Enum
 from collections import namedtuple
 import numpy as np
 
+# Inicializa o Pygame
 pygame.init()
+
+# Define a fonte para exibir o texto no jogo
 font = pygame.font.Font('arial.ttf', 25)
-#font = pygame.font.SysFont('arial', 25)
 
 class Direction(Enum):
+    """
+    Enumeração para representar as direções do movimento da cobra no jogo.
+    """
     RIGHT = 1
     LEFT = 2
     UP = 3
     DOWN = 4
 
+# Estrutura para representar um ponto no grid do jogo
 Point = namedtuple('Point', 'x, y')
 
-# rgb colors
+# Definição de cores RGB
 WHITE = (255, 255, 255)
-RED = (200,0,0)
+RED = (200, 0, 0)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
-BLACK = (0,0,0)
+BLACK = (0, 0, 0)
 
+# Tamanho do bloco da cobra e velocidade do jogo
 BLOCK_SIZE = 20
 SPEED = 40
 
 class SnakeGameAI:
+    """
+    Classe que representa o jogo da cobrinha controlado por uma IA.
+    """
 
     def __init__(self, w=640, h=480):
+        """
+        Inicializa o jogo da cobrinha com uma interface gráfica.
+
+        Args:
+            w (int): Largura da tela do jogo.
+            h (int): Altura da tela do jogo.
+        """
         self.w = w
         self.h = h
-        # init display
+        # Inicializa a tela de exibição do jogo
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Snake Game')
         self.clock = pygame.time.Clock()
         self.reset()
 
-
     def reset(self):
-        # init game state
+        """
+        Reinicia o estado do jogo, incluindo a direção inicial da cobra, 
+        sua posição e o alimento.
+        """
         self.direction = Direction.RIGHT
 
-        self.head = Point(self.w/2, self.h/2)
+        # Define a posição inicial da cobra no centro da tela
+        self.head = Point(self.w / 2, self.h / 2)
         self.snake = [self.head,
-                      Point(self.head.x-BLOCK_SIZE, self.head.y),
-                      Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
+                      Point(self.head.x - BLOCK_SIZE, self.head.y),
+                      Point(self.head.x - (2 * BLOCK_SIZE), self.head.y)]
 
         self.score = 0
         self.food = None
         self._place_food()
         self.frame_iteration = 0
 
-
     def _place_food(self):
-        x = random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
-        y = random.randint(0, (self.h-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
+        """
+        Coloca o alimento em uma posição aleatória no grid, 
+        garantindo que não coincida com a posição da cobra.
+        """
+        x = random.randint(0, (self.w - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
+        y = random.randint(0, (self.h - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
         self.food = Point(x, y)
         if self.food in self.snake:
             self._place_food()
 
-
     def play_step(self, action):
+        """
+        Executa um passo do jogo com base na ação fornecida.
+
+        Args:
+            action (list): Lista que representa a ação a ser tomada pela IA.
+
+        Returns:
+            tuple: Recompensa obtida, se o jogo terminou, e a pontuação atual.
+        """
         self.frame_iteration += 1
-        # 1. collect user input
+        
+        # 1. Captura as entradas do usuário (eventos)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-        
-        # 2. move
-        self._move(action) # update the head
+
+        # 2. Move a cobra de acordo com a ação fornecida
+        self._move(action)  # Atualiza a posição da cabeça da cobra
         self.snake.insert(0, self.head)
         
-        # 3. check if game over
+        # 3. Verifica se o jogo acabou (colisão ou tempo limite)
         reward = 0
         game_over = False
-        if self.is_collision() or self.frame_iteration > 100*len(self.snake):
+        if self.is_collision() or self.frame_iteration > 100 * len(self.snake):
             game_over = True
             reward = -10
             return reward, game_over, self.score
 
-        # 4. place new food or just move
+        # 4. Coloca um novo alimento ou move a cobra
         if self.head == self.food:
             self.score += 1
             reward = 10
@@ -89,32 +121,44 @@ class SnakeGameAI:
         else:
             self.snake.pop()
         
-        # 5. update ui and clock
+        # 5. Atualiza a interface do usuário e o relógio do jogo
         self._update_ui()
         self.clock.tick(SPEED)
-        # 6. return game over and score
+        
+        # 6. Retorna se o jogo terminou e a pontuação atual
         return reward, game_over, self.score
 
-
     def is_collision(self, pt=None):
+        """
+        Verifica se ocorreu uma colisão com as bordas ou com o corpo da cobra.
+
+        Args:
+            pt (Point, opcional): Ponto a ser verificado. Se não fornecido, 
+                                  verifica a posição atual da cabeça da cobra.
+
+        Returns:
+            bool: True se houver uma colisão, False caso contrário.
+        """
         if pt is None:
             pt = self.head
-        # hits boundary
+        # Verifica colisão com as bordas da tela
         if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
             return True
-        # hits itself
+        # Verifica colisão com o próprio corpo da cobra
         if pt in self.snake[1:]:
             return True
 
         return False
 
-
     def _update_ui(self):
+        """
+        Atualiza a interface do usuário, desenhando a cobra e o alimento na tela.
+        """
         self.display.fill(BLACK)
 
         for pt in self.snake:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
-            pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
+            pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
 
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
 
@@ -122,24 +166,29 @@ class SnakeGameAI:
         self.display.blit(text, [0, 0])
         pygame.display.flip()
 
-
     def _move(self, action):
-        # [straight, right, left]
+        """
+        Move a cobra para uma nova direção com base na ação fornecida.
 
+        Args:
+            action (list): Lista que representa a ação a ser tomada pela IA.
+                           [straight, right, left]
+        """
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
 
         if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx] # no change
+            new_dir = clock_wise[idx]  # Sem mudança
         elif np.array_equal(action, [0, 1, 0]):
             next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
-        else: # [0, 0, 1]
+            new_dir = clock_wise[next_idx]  # Virar à direita
+        else:  # [0, 0, 1]
             next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
+            new_dir = clock_wise[next_idx]  # Virar à esquerda
 
         self.direction = new_dir
 
+        # Atualiza a posição da cabeça da cobra
         x = self.head.x
         y = self.head.y
         if self.direction == Direction.RIGHT:
