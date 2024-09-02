@@ -25,7 +25,7 @@ class Agent:
         self.epsilon = 0  # Controle da exploração (randomness)
         self.gamma = 0.9  # Fator de desconto (para Q-learning)
         self.memory = deque(maxlen=MAX_MEMORY)  # Memória para armazenar experiências
-        self.model = Linear_QNet(11, 256, 3)  # Rede Neural usada para prever ações
+        self.model = Linear_QNet(14, 256, 3)  # Rede Neural usada para prever ações
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)  # Treinador do modelo
 
     def get_state(self, game):
@@ -49,32 +49,42 @@ class Agent:
         dir_u = game.direction == Direction.UP
         dir_d = game.direction == Direction.DOWN
 
+        # Informações sobre a cobra ao longo das quatro direções
+        danger_straight = (dir_r and game.is_collision(point_r)) or \
+                        (dir_l and game.is_collision(point_l)) or \
+                        (dir_u and game.is_collision(point_u)) or \
+                        (dir_d and game.is_collision(point_d))
+
+        danger_right = (dir_u and game.is_collision(point_r)) or \
+                    (dir_d and game.is_collision(point_l)) or \
+                    (dir_l and game.is_collision(point_u)) or \
+                    (dir_r and game.is_collision(point_d))
+
+        danger_left = (dir_d and game.is_collision(point_r)) or \
+                    (dir_u and game.is_collision(point_l)) or \
+                    (dir_r and game.is_collision(point_u)) or \
+                    (dir_l and game.is_collision(point_d))
+
+        # Corpo da cobra: verifica a presença do corpo nas direções principais
+        body_straight = self.check_body_direction(game, dir_l, dir_r, dir_u, dir_d, point_l, point_r, point_u, point_d)
+        body_right = self.check_body_direction(game, dir_u, dir_d, dir_l, dir_r, point_r, point_l, point_d, point_u)
+        body_left = self.check_body_direction(game, dir_d, dir_u, dir_r, dir_l, point_r, point_l, point_u, point_d)
+
         state = [
-            # Perigo à frente
-            (dir_r and game.is_collision(point_r)) or 
-            (dir_l and game.is_collision(point_l)) or 
-            (dir_u and game.is_collision(point_u)) or 
-            (dir_d and game.is_collision(point_d)),
-
-            # Perigo à direita
-            (dir_u and game.is_collision(point_r)) or 
-            (dir_d and game.is_collision(point_l)) or 
-            (dir_l and game.is_collision(point_u)) or 
-            (dir_r and game.is_collision(point_d)),
-
-            # Perigo à esquerda
-            (dir_d and game.is_collision(point_r)) or 
-            (dir_u and game.is_collision(point_l)) or 
-            (dir_r and game.is_collision(point_u)) or 
-            (dir_l and game.is_collision(point_d)),
-            
-            # Direção do movimento
+            # PERIGO
+            danger_straight,
+            danger_right,
+            danger_left,
+            # CORPO
+            body_straight,
+            body_right,
+            body_left,
+            # DIREÇÃO
             dir_l,
             dir_r,
             dir_u,
             dir_d,
-            
-            # Localização do alimento 
+            # COMIDA
             game.food.x < game.head.x,  # Alimento à esquerda
             game.food.x > game.head.x,  # Alimento à direita
             game.food.y < game.head.y,  # Alimento acima
@@ -82,6 +92,28 @@ class Agent:
         ]
 
         return np.array(state, dtype=int)
+
+    def check_body_direction(self, game, dir_l, dir_r, dir_u, dir_d, point_l, point_r, point_u, point_d):
+        """
+        Verifica se o corpo da cobra está presente em uma direção específica.
+
+        Args:
+            game (SnakeGameAI): Instância do jogo da cobrinha.
+            dir_l, dir_r, dir_u, dir_d (bool): Direções atuais da cobra.
+            point_l, point_r, point_u, point_d (Point): Pontos de verificação.
+
+        Returns:
+            int: 1 se o corpo da cobra está presente na direção, 0 caso contrário.
+        """
+        if dir_r:
+            return int(any(point_r == pt for pt in game.snake[1:]))
+        if dir_l:
+            return int(any(point_l == pt for pt in game.snake[1:]))
+        if dir_u:
+            return int(any(point_u == pt for pt in game.snake[1:]))
+        if dir_d:
+            return int(any(point_d == pt for pt in game.snake[1:]))
+        return 0
 
     def remember(self, state, action, reward, next_state, done):
         """
