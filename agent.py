@@ -39,10 +39,6 @@ class Agent:
             np.array: Vetor representando o estado atual do jogo.
         """
         head = game.snake[0]  # Cabeça da cobra
-        point_l = Point(head.x - 20, head.y)  # Ponto à esquerda da cabeça
-        point_r = Point(head.x + 20, head.y)  # Ponto à direita da cabeça
-        point_u = Point(head.x, head.y - 20)  # Ponto acima da cabeça
-        point_d = Point(head.x, head.y + 20)  # Ponto abaixo da cabeça
 
         dir_l = game.direction == Direction.LEFT
         dir_r = game.direction == Direction.RIGHT
@@ -50,25 +46,25 @@ class Agent:
         dir_d = game.direction == Direction.DOWN
 
         # Informações sobre a cobra ao longo das quatro direções
-        danger_straight = (dir_r and game.is_collision(point_r)) or \
-                        (dir_l and game.is_collision(point_l)) or \
-                        (dir_u and game.is_collision(point_u)) or \
-                        (dir_d and game.is_collision(point_d))
+        danger_straight = (dir_r and game.is_collision(Point(head.x + 20, head.y))) or \
+                        (dir_l and game.is_collision(Point(head.x - 20, head.y))) or \
+                        (dir_u and game.is_collision(Point(head.x, head.y - 20))) or \
+                        (dir_d and game.is_collision(Point(head.x, head.y + 20)))
 
-        danger_right = (dir_u and game.is_collision(point_r)) or \
-                    (dir_d and game.is_collision(point_l)) or \
-                    (dir_l and game.is_collision(point_u)) or \
-                    (dir_r and game.is_collision(point_d))
+        danger_right = (dir_u and game.is_collision(Point(head.x + 20, head.y))) or \
+                    (dir_d and game.is_collision(Point(head.x - 20, head.y))) or \
+                    (dir_l and game.is_collision(Point(head.x, head.y - 20))) or \
+                    (dir_r and game.is_collision(Point(head.x, head.y + 20)))
 
-        danger_left = (dir_d and game.is_collision(point_r)) or \
-                    (dir_u and game.is_collision(point_l)) or \
-                    (dir_r and game.is_collision(point_u)) or \
-                    (dir_l and game.is_collision(point_d))
+        danger_left = (dir_d and game.is_collision(Point(head.x + 20, head.y))) or \
+                    (dir_u and game.is_collision(Point(head.x - 20, head.y))) or \
+                    (dir_r and game.is_collision(Point(head.x, head.y - 20))) or \
+                    (dir_l and game.is_collision(Point(head.x, head.y + 20)))
 
-        # Corpo da cobra: verifica a presença do corpo nas direções principais
-        body_straight = self.check_body_direction(game, dir_l, dir_r, dir_u, dir_d, point_l, point_r, point_u, point_d)
-        body_right = self.check_body_direction(game, dir_u, dir_d, dir_l, dir_r, point_r, point_l, point_d, point_u)
-        body_left = self.check_body_direction(game, dir_d, dir_u, dir_r, dir_l, point_r, point_l, point_u, point_d)
+        # Corpo da cobra: verifica a presença do corpo ao longo de toda a linha reta
+        body_straight = self.check_body_direction(game, dir_l, dir_r, dir_u, dir_d, head)
+        body_right = self.check_body_direction(game, dir_u, dir_d, dir_l, dir_r, head)
+        body_left = self.check_body_direction(game, dir_d, dir_u, dir_r, dir_l, head)
 
         state = [
             # PERIGO
@@ -85,34 +81,48 @@ class Agent:
             dir_u,
             dir_d,
             # COMIDA
-            game.food.x < game.head.x,  # Alimento à esquerda
-            game.food.x > game.head.x,  # Alimento à direita
-            game.food.y < game.head.y,  # Alimento acima
-            game.food.y > game.head.y   # Alimento abaixo
+            game.food.x < head.x,  # Alimento à esquerda
+            game.food.x > head.x,  # Alimento à direita
+            game.food.y < head.y,  # Alimento acima
+            game.food.y > head.y   # Alimento abaixo
         ]
 
         return np.array(state, dtype=int)
 
-    def check_body_direction(self, game, dir_l, dir_r, dir_u, dir_d, point_l, point_r, point_u, point_d):
+    def check_body_direction(self, game, dir_l, dir_r, dir_u, dir_d, head):
         """
-        Verifica se o corpo da cobra está presente em uma direção específica.
+        Verifica se o corpo da cobra está presente ao longo de uma linha reta em uma direção específica.
 
         Args:
             game (SnakeGameAI): Instância do jogo da cobrinha.
             dir_l, dir_r, dir_u, dir_d (bool): Direções atuais da cobra.
-            point_l, point_r, point_u, point_d (Point): Pontos de verificação.
+            head (Point): A posição da cabeça da cobra.
 
         Returns:
             int: 1 se o corpo da cobra está presente na direção, 0 caso contrário.
         """
+        # Define a direção de movimento com base na direção atual da cobra
         if dir_r:
-            return int(any(point_r == pt for pt in game.snake[1:]))
-        if dir_l:
-            return int(any(point_l == pt for pt in game.snake[1:]))
-        if dir_u:
-            return int(any(point_u == pt for pt in game.snake[1:]))
-        if dir_d:
-            return int(any(point_d == pt for pt in game.snake[1:]))
+            delta_x, delta_y = 20, 0
+        elif dir_l:
+            delta_x, delta_y = -20, 0
+        elif dir_u:
+            delta_x, delta_y = 0, -20
+        elif dir_d:
+            delta_x, delta_y = 0, 20
+        else:
+            return 0
+
+        # Inicializa o ponto atual como a posição inicial logo à frente da cabeça da cobra
+        point = Point(head.x + delta_x, head.y + delta_y)
+
+        # Percorre a linha reta na direção especificada
+        while 0 <= point.x < game.w and 0 <= point.y < game.h:
+            if point in game.snake[1:]:  # Verifica se o ponto faz parte do corpo da cobra
+                return 1
+            # Cria um novo ponto na linha reta
+            point = Point(point.x + delta_x, point.y + delta_y)
+
         return 0
 
     def remember(self, state, action, reward, next_state, done):
