@@ -108,7 +108,17 @@ class SnakeGameAI:
         # 3. Verifica se o jogo acabou (colisão ou tempo limite)
         reward = 0
         game_over = False
-        if self.is_collision() or self.frame_iteration > 100 * len(self.snake):
+        
+        collision_type = self.is_collision(self.head)
+        if collision_type:
+            game_over = True
+            if collision_type == 2:
+                reward = -20  # Penalidade maior para colisão com o próprio corpo
+            elif collision_type == 1:
+                reward = -10  # Penalidade menor para colisão com a borda
+            return reward, game_over, self.score
+        
+        if self.frame_iteration > 100 * len(self.snake):
             game_over = True
             reward = -10
             return reward, game_over, self.score
@@ -134,21 +144,25 @@ class SnakeGameAI:
 
         Args:
             pt (Point, opcional): Ponto a ser verificado. Se não fornecido, 
-                                  verifica a posição atual da cabeça da cobra.
+                                verifica a posição atual da cabeça da cobra.
 
         Returns:
-            bool: True se houver uma colisão, False caso contrário.
+            int: 1 se houver uma colisão com a borda,
+                2 se houver uma colisão com o próprio corpo,
+                0 caso contrário.
         """
         if pt is None:
             pt = self.head
+        
         # Verifica colisão com as bordas da tela
         if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
-            return True
+            return 1  # Retorna 1 para colisão com borda
+        
         # Verifica colisão com o próprio corpo da cobra
         if pt in self.snake[1:]:
-            return True
-
-        return False
+            return 2  # Retorna 2 para colisão com o próprio corpo
+        
+        return 0  # Retorna 0 se não houver colisão
 
     def _update_ui(self):
         """
