@@ -31,7 +31,7 @@ BLACK = (0, 0, 0)
 
 # Tamanho do bloco da cobra e velocidade do jogo
 BLOCK_SIZE = 20
-SPEED = 1000
+SPEED = 30
 
 class SnakeGameAI:
     """
